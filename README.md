@@ -7,6 +7,7 @@
 
 An interactive, responsive, and real-time dashboard for visualizing global earthquake data. By fetching live data from the USGS API, it provides intelligent data mapping, clustered visualizations, and viewport-synced charts to help observe and analyze global seismic activity easily.
 
+![Global Earthquake Dashboard](screenshot.png)
 ## Features
 
 - **Live Mode (Auto-Refresh):** Watch real-time seismic events unfold. Toggling "Live" locks the map to a 24-hour window and queries data every 60 seconds automatically.
