@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earthquake Dashboard</title>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet.js -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <!-- Leaflet MarkerCluster -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --text-color: #ffffff;
+            --text-secondary: #aaaaaa;
+            --accent-color: #bb86fc;
+            --accent-variant: #3700b3;
+            --danger-color: #cf6679;
+            --line-color: #03dac6;
+            --font-family: 'Inter', sans-serif;
+            --border-radius: 12px;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex-grow: 1;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        
+        header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.5rem;
+            color: var(--accent-color);
+            letter-spacing: -0.5px;
+        }
+
+        header p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            background-color: var(--surface-color);
+            padding: 15px 24px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-group label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .control-group input[type="date"],
+        .control-group select {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid #333;
+            color: var(--text-color);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: var(--font-family);
+            outline: none;
+            transition: border-color 0.2s;
+            color-scheme: dark;
+        }
+
+        .control-group input[type="date"]:focus,
+        .control-group select:focus {
+            border-color: var(--accent-color);
+        }
+
+        /* Base styling for options within the select to display in dark mode cleanly */
+        .control-group select option {
+            background-color: var(--surface-color);
+            color: var(--text-color);
+        }
+
+        button.fetch-btn {
+            background-color: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 9px 20px;
+            border-radius: 6px;
+            font-family: var(--font-family);
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        button.fetch-btn:hover {
+            background-color: #d0a8ff;
+        }
+
+        button.fetch-btn:active {
+            transform: scale(0.98);
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background-color: var(--surface-color);
+            padding: 24px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+        }
+
+        .card h2 {
+            margin: 0 0 8px 0;
+            font-size: 1rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .card .value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            margin: 0 0 8px 0;
+        }
+        
+        .card .strongest-value {
+             color: var(--danger-color);
+        }
+
+        .card .subtext {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        .map-card {
+            background-color: var(--surface-color);
+            padding: 24px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .map-card h3 {
+            margin: 0 0 20px 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        #map {
+            width: 100%;
+            height: 500px;
+            border-radius: 8px;
+            background-color: #121212;
+            z-index: 1; /* Keep leaflet below the reset button */
+        }
+
+        .reset-btn {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--text-color);
+            border: 1px solid #333;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: var(--font-family);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 1000; /* Ensure it stays above map tiles */
+        }
+
+        .reset-btn:hover {
+            background-color: var(--accent-color);
+            color: #000;
+            border-color: var(--accent-color);
+        }
+
+        .near-me-btn {
+            background-color: var(--line-color);
+            color: #000;
+            border: none;
+            padding: 9px 15px;
+            border-radius: 6px;
+            font-family: var(--font-family);
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .near-me-btn:hover { background-color: #00bfa5; }
+        .near-me-btn:active { transform: scale(0.98); }
+
+        .live-btn {
+            background-color: transparent;
+            color: var(--text-color);
+            border: 1px solid var(--text-secondary);
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-family: var(--font-family);
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .live-btn.active {
+            background-color: rgba(3, 218, 198, 0.1);
+            border-color: var(--line-color);
+            color: var(--line-color);
+        }
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--text-secondary);
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+        .live-btn.active .live-dot {
+            background-color: var(--line-color);
+            box-shadow: 0 0 8px var(--line-color);
+            animation: pulse-dot 1.5s infinite;
+        }
+        @keyframes pulse-dot {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(3, 218, 198, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(3, 218, 198, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(3, 218, 198, 0); }
+        }
+        .live-countdown {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            min-width: 80px;
+        }
+
+        /* Legend */
+        .map-legend {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            background-color: rgba(30, 30, 30, 0.9);
+            padding: 12px;
+            border-radius: var(--border-radius);
+            border: 1px solid #333;
+            z-index: 1000;
+            font-size: 0.85rem;
+            color: var(--text-color);
+            transition: all 0.3s;
+        }
+        .map-legend.collapsed .legend-content {
+            display: none;
+        }
+        .legend-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+        .map-legend.collapsed .legend-header { margin-bottom: 0; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+        .legend-color { width: 12px; height: 12px; border-radius: 50%; }
+        .legend-size { display: flex; align-items: center; gap: 8px; margin-top: 10px; border-top: 1px solid #444; padding-top: 10px;}
+        .size-circle { border: 1px solid #fff; border-radius: 50%; background: transparent; }
+
+        /* User Marker pulsing */
+        .user-marker {
+            background-color: #2196f3;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(33, 150, 243, 0.8);
+            animation: user-pulse 2s infinite;
+        }
+        @keyframes user-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(33,150,243, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(33,150,243, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(33,150,243, 0); }
+        }
+
+        /* Leaflet Dark Theme Overrides */
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+            background-color: var(--surface-color);
+            color: var(--text-color);
+        }
+
+        /* MarkerCluster Custom Theme */
+        .marker-cluster-custom {
+            background-color: rgba(187, 134, 252, 0.7);
+            color: white;
+            border-radius: 50%;
+            font-family: var(--font-family);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+        }
+
+        .chart-card {
+            background-color: var(--surface-color);
+            padding: 24px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-card h3 {
+            margin: 0 0 20px 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            flex-grow: 1;
+            width: 100%;
+        }
+
+        #loading {
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            padding: 50px;
+            animation: pulse 1.5s infinite;
+            display: none;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        #error {
+            text-align: center;
+            font-size: 1.1rem;
+            color: var(--danger-color);
+            padding: 24px;
+            margin: 0 auto;
+            max-width: 800px;
+            width: 100%;
+            display: none;
+            background-color: rgba(207, 102, 121, 0.1);
+            border-radius: var(--border-radius);
+            border: 1px solid rgba(207, 102, 121, 0.3);
+            box-sizing: border-box;
+        }
+
+        #warning-banner {
+            text-align: center;
+            font-size: 0.95rem;
+            color: var(--danger-color);
+            padding: 12px;
+            margin: 0 auto 20px auto;
+            max-width: 800px;
+            width: 100%;
+            display: none;
+            background-color: rgba(207, 102, 121, 0.1);
+            border-radius: var(--border-radius);
+            border: 1px solid rgba(207, 102, 121, 0.3);
+            box-sizing: border-box;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: auto;
+        }
+
+        @media (max-width: 768px) {
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+            .chart-card {
+                 min-height: 300px;
+            }
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .control-group {
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Global Earthquake Dashboard</h1>
+            <p>Data from USGS (Magnitude 1.0+)</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="startDate">From:</label>
+                <input type="date" id="startDate">
+            </div>
+            <div class="control-group">
+                <label for="endDate">To:</label>
+                <input type="date" id="endDate">
+            </div>
+            <div class="control-group">
+                <label for="minMag">Min Mag:</label>
+                <select id="minMag">
+                    <option value="1">1.0+</option>
+                    <option value="2">2.0+</option>
+                    <option value="3">3.0+</option>
+                    <option value="4">4.0+</option>
+                    <option value="5">5.0+</option>
+                </select>
+            </div>
+            <button class="near-me-btn" id="nearMeBtn">📍 Near Me</button>
+            <button class="fetch-btn" id="fetchDataBtn">Fetch Data</button>
+            <div class="control-group">
+                <button class="live-btn" id="liveBtn" title="Auto-refresh last 24h data every 60s">
+                    <span class="live-dot"></span>Live
+                </button>
+                <span id="liveCountdown" class="live-countdown"></span>
+            </div>
+        </div>
+
+        <div id="warning-banner"></div>
+        <div id="loading">Fetching earthquake data...</div>
+        <div id="error">Failed to load earthquake data.</div>
+
+        <div id="dashboard" style="display: none;">
+            <div class="summary-cards">
+                <div class="card">
+                    <h2>Total Earthquakes</h2>
+                    <div class="value" id="total-count">0</div>
+                    <p class="subtext" id="summary-date-range">...</p>
+                </div>
+                <div class="card">
+                    <h2>Strongest Earthquake</h2>
+                    <div class="value strongest-value" id="strongest-mag">0.0</div>
+                    <p class="subtext" id="strongest-loc">Location Unknown</p>
+                </div>
+            </div>
+
+            <div class="map-card">
+                <button id="resetMapBtn" class="reset-btn">Reset to Global View</button>
+                <h3>Earthquake Map</h3>
+                <div id="map"></div>
+                
+                <div id="mapLegend" class="map-legend">
+                    <div class="legend-header" id="legendToggle">
+                        <span>Magnitude</span>
+                        <span id="legendArrow" style="margin-left:8px;">▼</span>
+                    </div>
+                    <div class="legend-content">
+                        <div class="legend-item"><div class="legend-color" style="background: #03dac6"></div>Below 3.0</div>
+                        <div class="legend-item"><div class="legend-color" style="background: #ffc107"></div>3.0 to 4.9</div>
+                        <div class="legend-item"><div class="legend-color" style="background: #ff9800"></div>5.0 to 5.9</div>
+                        <div class="legend-item"><div class="legend-color" style="background: #ff5722"></div>6.0 to 6.9</div>
+                        <div class="legend-item"><div class="legend-color" style="background: #cf6679"></div>7.0+</div>
+                        <div class="legend-size">
+                            <div class="size-circle" style="width: 6px; height: 6px;"></div>
+                            <div class="size-circle" style="width: 14px; height: 14px;"></div>
+                            <span style="font-size:0.75rem;">Larger = stronger</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-container">
+                <div class="chart-card">
+                    <h3>Magnitude Distribution</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="magnitudeChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Daily Earthquake Count</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="dailyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <div id="last-updated">Last updated: -</div>
+        </footer>
+    </div>
+
+    <script>
+        // Chart Configuration defaults for Dark Theme
+        Chart.defaults.color = '#aaaaaa';
+        Chart.defaults.borderColor = '#333333';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+
+        let magChartInstance = null;
+        let dailyChartInstance = null;
+        
+        // Map global variables
+        let globalFeatures = [];
+        let map = null;
+        let markersLayer = null;
+        let filterTimeout = null;
+        let currentStartStr = "";
+        let currentEndStr = "";
+        let currentMinMagVal = 1.0;
+
+        let isLiveMode = false;
+        let countdownInterval = null;
+        let countdownSeconds = 0;
+        let userMarker = null;
+
+        function initMap() {
+            map = L.map('map').setView([39.0, 35.0], 5);
+            L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png', {
+                attribution: 'Map tiles by CartoDB, under CC BY 3.0. Data by OpenStreetMap, under ODbL.'
+            }).addTo(map);
+
+            markersLayer = L.markerClusterGroup({
+                maxClusterRadius: 50,
+                disableClusteringAtZoom: 8,
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false,
+                iconCreateFunction: function(cluster) {
+                    return L.divIcon({
+                        html: `<div><span>${cluster.getChildCount()}</span></div>`,
+                        className: 'marker-cluster-custom',
+                        iconSize: L.point(40, 40)
+                    });
+                }
+            }).addTo(map);
+
+            map.on('moveend', () => {
+                if (filterTimeout) clearTimeout(filterTimeout);
+                filterTimeout = setTimeout(() => {
+                    filterDataByViewport();
+                }, 300);
+            });
+        }
+
+        function renderMapMarkers(features) {
+            markersLayer.clearLayers();
+
+            features.forEach(feature => {
+                const mag = feature.properties.mag;
+                const place = feature.properties.place;
+                const time = feature.properties.time;
+                // Coords: [longitude, latitude, depth]
+                const coords = feature.geometry.coordinates;
+                const lat = coords[1];
+                const lon = coords[0];
+                const depth = coords[2];
+
+                let radius;
+                if (features.length > 2000) {
+                    radius = Math.max(2, Math.min(25, Math.pow(1.5, mag)));
+                } else {
+                    radius = Math.max(3, Math.min(40, Math.pow(2, mag)));
+                }
+
+                let color;
+                if (mag < 3) {
+                    color = '#03dac6'; // teal
+                } else if (mag >= 3 && mag < 5) {
+                    color = '#ffc107'; // yellow
+                } else if (mag >= 5 && mag < 6) {
+                    color = '#ff9800'; // orange
+                } else if (mag >= 6 && mag < 7) {
+                    color = '#ff5722'; // deep orange
+                } else {
+                    color = '#cf6679'; // red
+                }
+
+                const date = new Date(time);
+                // Formatting time explicitly to 'Mar 12, 2026 14:32 UTC'
+                const options = { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false };
+                const timeFormatter = new Intl.DateTimeFormat('en-US', options);
+                let timeStr = timeFormatter.format(date);
+                // Clean up string depending on browser formatter slightly different rules
+                timeStr = timeStr.replace(',', '') + ' UTC';
+
+                const marker = L.circleMarker([lat, lon], {
+                    radius: radius,
+                    fillColor: color,
+                    color: color,
+                    weight: 1,
+                    opacity: 1.0,
+                    fillOpacity: 0.6
+                });
+
+                marker.bindPopup(`
+                    <div style="font-family: 'Inter', sans-serif; font-size: 0.9rem;">
+                        <strong>Magnitude: ${mag.toFixed(1)}</strong><br>
+                        Location: ${place}<br>
+                        Depth: ${depth} km<br>
+                        Time: ${timeStr}
+                    </div>
+                `);
+
+                markersLayer.addLayer(marker);
+            });
+        }
+
+        function filterDataByViewport() {
+            if (!map || !globalFeatures.length) return;
+
+            const bounds = map.getBounds();
+            const visibleFeatures = globalFeatures.filter(feature => {
+                const coords = feature.geometry.coordinates;
+                const pt = L.latLng(coords[1], coords[0]);
+                return bounds.contains(pt);
+            });
+
+            aggregateAndRenderCharts(visibleFeatures, currentMinMagVal);
+        }
+
+        function initDates() {
+            const today = new Date();
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(today.getDate() - 7);
+
+            // Format as YYYY-MM-DD for date inputs
+            const formatDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            document.getElementById('endDate').value = formatDate(today);
+            document.getElementById('startDate').value = formatDate(sevenDaysAgo);
+        }
+
+        async function fetchEarthquakeData(isBackgroundRefresh = false) {
+            const startDate = document.getElementById('startDate').value;
+            const endDateInput = document.getElementById('endDate').value;
+            const minMagSelect = document.getElementById('minMag');
+            
+            if (!startDate || !endDateInput) {
+                alert("Please select both start and end dates.");
+                return;
+            }
+
+            // Calculate Date Difference
+            const d1 = new Date(startDate);
+            const d2 = new Date(endDateInput);
+            
+            if (d2 < d1) {
+                alert("End date must be after the start date.");
+                return;
+            }
+
+            const diffTime = Math.abs(d2 - d1);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            // Smart Query Validation
+            let requiredMinMag = parseFloat(minMagSelect.value);
+            let autoAdjusted = false;
+
+            if (diffDays <= 30) {
+                // allow any
+            } else if (diffDays <= 180) {
+                if (requiredMinMag < 3.0) { requiredMinMag = 3.0; autoAdjusted = true; }
+            } else if (diffDays <= 365) {
+                if (requiredMinMag < 4.0) { requiredMinMag = 4.0; autoAdjusted = true; }
+            } else {
+                if (requiredMinMag < 5.0) { requiredMinMag = 5.0; autoAdjusted = true; }
+            }
+
+            const warningEl = document.getElementById('warning-banner');
+            if (autoAdjusted) {
+                minMagSelect.value = requiredMinMag.toString();
+                warningEl.textContent = `Date range is ${diffDays} days. Minimum magnitude auto-adjusted to ${requiredMinMag.toFixed(1)}+ to avoid overloading the API.`;
+                warningEl.style.display = 'block';
+            } else {
+                warningEl.style.display = 'none';
+                warningEl.textContent = "";
+            }
+
+            // Append 23:59:59 to capture the full end date block because USGS limits are exclusive/exact timestamps.
+            const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${startDate}&endtime=${endDateInput}T23:59:59&minmagnitude=${requiredMinMag}&limit=20000`;
+
+            if (!isBackgroundRefresh) {
+                document.getElementById('dashboard').style.display = 'none';
+                document.getElementById('error').style.display = 'none';
+                document.getElementById('loading').style.display = 'block';
+            }
+
+            // Abort Controller for 20s timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+            try {
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId); // clear the timeout cleanly if we get a response
+                
+                if (!response.ok) {
+                    let errorMsg = `HTTP error! status: ${response.status}`;
+                    if (response.status === 503) {
+                        errorMsg = 'Server overloaded (503). Try a shorter date range or higher minimum magnitude.';
+                    } else if (response.status === 429) {
+                        errorMsg = 'Rate limited (429). Wait 60 seconds and try again.';
+                    } else if (response.status === 400) {
+                        const errText = await response.text();
+                        errorMsg = `Bad Request (400): ${errText}`;
+                    }
+                    throw new Error(errorMsg);
+                }
+                const data = await response.json();
+                
+                globalFeatures = data.features;
+                currentStartStr = startDate;
+                currentEndStr = endDateInput;
+                currentMinMagVal = requiredMinMag;
+
+                if (!isBackgroundRefresh) {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('dashboard').style.display = 'block';
+                }
+
+                if (!map) {
+                    initMap();
+                } else {
+                    map.invalidateSize();
+                }
+
+                // Plot markers globally without filtering first
+                renderMapMarkers(globalFeatures);
+                // Then filter the visible data (which automatically updates charts & summary)
+                filterDataByViewport();
+                
+                // Update Last Updated Timestamp using local time
+                const now = new Date();
+                document.getElementById('last-updated').textContent = `Last updated: ${now.toLocaleString()}`;
+
+            } catch (error) {
+                clearTimeout(timeoutId);
+                console.error("Error fetching data:", error);
+                
+                if (!isBackgroundRefresh) {
+                    document.getElementById('loading').style.display = 'none';
+                    const errorEl = document.getElementById('error');
+                    errorEl.style.display = 'block';
+                    
+                    if (error.name === 'AbortError') {
+                        errorEl.textContent = 'Request timed out. Try a shorter date range or higher minimum magnitude.';
+                    } else {
+                        errorEl.textContent = error.message || 'Failed to load earthquake data. Please check your connection or try again later.';
+                    }
+                }
+            }
+        }
+
+        function aggregateAndRenderCharts(features, currentMinMagStr) {
+            let minMag = parseFloat(currentMinMagStr) || 1.0;
+
+            // 1. Total Count
+            const totalCount = features.length;
+            
+            // 2. Strongest Earthquake tracking variables
+            let strongestMag = -1;
+            let strongestLoc = "";
+            let strongestTime = 0;
+
+            // 3. Magnitude Distribution (Dynamic Buckets)
+            const magCounts = {};
+            const bucketNames = [];
+            for (let i = 0; i < 4; i++) {
+                const start = Math.floor(minMag) + i;
+                const end = start + 0.9;
+                const name = `${start.toFixed(1)} - ${end.toFixed(1)}`;
+                bucketNames.push(name);
+                magCounts[name] = 0;
+            }
+            const lastBucketName = `${(Math.floor(minMag) + 4).toFixed(1)}+`;
+            bucketNames.push(lastBucketName);
+            magCounts[lastBucketName] = 0;
+
+            // 4. Daily Count (UTC grouped to avoid timezone shifts)
+            const dailyCounts = {};
+
+            features.forEach(feature => {
+                const mag = feature.properties.mag;
+                const place = feature.properties.place;
+                const time = feature.properties.time;
+
+                // Update strongest earthquake
+                if (mag > strongestMag) {
+                    strongestMag = mag;
+                    strongestLoc = place;
+                    strongestTime = time;
+                }
+
+                // Update magnitude distribution dynamically
+                const baseMag = Math.floor(minMag);
+                if (mag >= baseMag + 4) {
+                    magCounts[lastBucketName]++;
+                } else {
+                    for (let i = 0; i < 4; i++) {
+                        const start = baseMag + i;
+                        if (mag >= start && mag < start + 1) {
+                            magCounts[bucketNames[i]]++;
+                            break;
+                        }
+                    }
+                }
+
+                // Update daily counts using strict UTC to match API query boundaries universally
+                const date = new Date(time);
+                const dateString = date.toISOString().split('T')[0];
+                dailyCounts[dateString] = (dailyCounts[dateString] || 0) + 1;
+            });
+
+            // Prepare Daily Chart Data
+            const sortedDates = Object.keys(dailyCounts).sort();
+            const dailyData = sortedDates.map(date => dailyCounts[date]);
+            
+            // Format dates for UI display to avoid local timezone shifts
+            const formatDisplayDate = (ymdStr) => {
+                const parts = ymdStr.split('-');
+                const d = new Date(Date.UTC(parts[0], parts[1]-1, parts[2]));
+                return d.toLocaleDateString(undefined, { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' });
+            };
+            
+            const rangeText = `Recorded between ${formatDisplayDate(currentStartStr)} and ${formatDisplayDate(currentEndStr)}`;
+
+            // Update UI - Summary Cards
+            updateSummaryCards(totalCount, strongestMag, strongestLoc, strongestTime, rangeText);
+
+            // Render the Charts
+            renderCharts(magCounts, sortedDates, dailyData);
+        }
+
+        function updateSummaryCards(totalCount, strongestMag, strongestLoc, strongestTime, rangeText) {
+            const countEl = document.getElementById('total-count');
+            const magEl = document.getElementById('strongest-mag');
+            const locEl = document.getElementById('strongest-loc');
+            const rangeEl = document.getElementById('summary-date-range');
+
+            // Set the subtitle to the actual selected date bounds
+            rangeEl.textContent = rangeText;
+
+            // Set Data with a small counter animation
+            animateCounter(countEl, totalCount, 1000);
+            
+            if (strongestMag > 0) {
+                magEl.textContent = `M ${strongestMag.toFixed(1)}`;
+                
+                // Format the strongest earthquake time in the user's local time
+                const strongestDate = new Date(strongestTime);
+                const dateOptions = { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' };
+                locEl.textContent = `${strongestLoc} (${strongestDate.toLocaleDateString(undefined, dateOptions)})`;
+            } else {
+                magEl.textContent = "N/A";
+                locEl.textContent = "No valid data found in range.";
+            }
+        }
+
+        // Simple counter animation
+        function animateCounter(element, target, duration) {
+            let start = 0;
+            const increment = target / (duration / 16); // 60fps
+            const timer = setInterval(() => {
+                start += increment;
+                if (start >= target) {
+                    element.textContent = target.toLocaleString();
+                    clearInterval(timer);
+                } else {
+                    element.textContent = Math.floor(start).toLocaleString();
+                }
+            }, 16);
+        }
+
+        function renderCharts(magCounts, dailyLabels, dailyData) {
+            // Destroy existing charts to prevent hover/render overlap issues
+            if (magChartInstance) magChartInstance.destroy();
+            if (dailyChartInstance) dailyChartInstance.destroy();
+
+            // Magnitude Bar Chart
+            const magCtx = document.getElementById('magnitudeChart').getContext('2d');
+            magChartInstance = new Chart(magCtx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(magCounts),
+                    datasets: [{
+                        label: 'Earthquakes',
+                        data: Object.values(magCounts),
+                        backgroundColor: [
+                            'rgba(187, 134, 252, 0.7)',
+                            'rgba(3, 218, 198, 0.7)',
+                            'rgba(255, 193, 7, 0.7)',
+                            'rgba(255, 152, 0, 0.7)',
+                            'rgba(207, 102, 121, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(187, 134, 252, 1)',
+                            'rgba(3, 218, 198, 1)',
+                            'rgba(255, 193, 7, 1)',
+                            'rgba(255, 152, 0, 1)',
+                            'rgba(207, 102, 121, 1)'
+                        ],
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        hoverBackgroundColor: [
+                            'rgba(187, 134, 252, 0.9)',
+                            'rgba(3, 218, 198, 0.9)',
+                            'rgba(255, 193, 7, 0.9)',
+                            'rgba(255, 152, 0, 0.9)',
+                            'rgba(207, 102, 121, 0.9)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(30,30,30,0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#bbb',
+                            borderColor: '#333',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.raw.toLocaleString()} earthquakes`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+
+            // Daily Line Chart
+            const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+            
+            let gradient = dailyCtx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(3, 218, 198, 0.5)');
+            gradient.addColorStop(1, 'rgba(3, 218, 198, 0.0)');
+
+            // Format dates strictly using UTC so they don't shift by 1 day in Istanbul or other timezones
+            const formattedLabels = dailyLabels.map(dateStr => {
+                const parts = dateStr.split('-');
+                const d = new Date(Date.UTC(parts[0], parts[1]-1, parts[2]));
+                return d.toLocaleDateString(undefined, { timeZone: 'UTC', month: 'short', day: 'numeric' });
+            });
+
+            dailyChartInstance = new Chart(dailyCtx, {
+                type: 'line',
+                data: {
+                    labels: formattedLabels,
+                    datasets: [{
+                        label: 'Daily Count',
+                        data: dailyData,
+                        borderColor: '#03dac6',
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#1e1e1e',
+                        pointBorderColor: '#03dac6',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: '#03dac6',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(30,30,30,0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#bbb',
+                            borderColor: '#333',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.raw.toLocaleString()} earthquakes`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.05)' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Event Listeners
+        document.getElementById('fetchDataBtn').addEventListener('click', () => {
+            if (isLiveMode) startLiveInterval(); // Reset interval safely
+            fetchEarthquakeData();
+        });
+        
+        document.getElementById('resetMapBtn').addEventListener('click', () => {
+            if (map) {
+                map.setView([39.0, 35.0], 2);
+                if (userMarker) {
+                    map.removeLayer(userMarker);
+                    userMarker = null;
+                }
+            }
+        });
+
+        document.getElementById('liveBtn').addEventListener('click', toggleLiveMode);
+        document.getElementById('nearMeBtn').addEventListener('click', handleNearMe);
+        window.addEventListener('beforeunload', stopLiveInterval);
+
+        function toggleLiveMode() {
+            const startDateEl = document.getElementById('startDate');
+            const endDateEl = document.getElementById('endDate');
+            const minMagEl = document.getElementById('minMag');
+            const liveBtn = document.getElementById('liveBtn');
+            const countdownEl = document.getElementById('liveCountdown');
+
+            isLiveMode = !isLiveMode;
+
+            if (isLiveMode) {
+                // Save previous values
+                liveBtn.dataset.prevStart = startDateEl.value;
+                liveBtn.dataset.prevEnd = endDateEl.value;
+                liveBtn.dataset.prevMag = minMagEl.value;
+
+                startDateEl.disabled = true;
+                endDateEl.disabled = true;
+                minMagEl.disabled = true;
+                liveBtn.classList.add('active');
+
+                set24HourRange();
+                fetchEarthquakeData();
+                startLiveInterval();
+            } else {
+                startDateEl.disabled = false;
+                endDateEl.disabled = false;
+                minMagEl.disabled = false;
+                liveBtn.classList.remove('active');
+                countdownEl.textContent = "";
+
+                // Restore previous values
+                if (liveBtn.dataset.prevStart) {
+                    startDateEl.value = liveBtn.dataset.prevStart;
+                    endDateEl.value = liveBtn.dataset.prevEnd;
+                    minMagEl.value = liveBtn.dataset.prevMag;
+                }
+
+                stopLiveInterval();
+            }
+        }
+
+        function set24HourRange() {
+            const now = new Date();
+            const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            const formatYMD = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            
+            document.getElementById('startDate').value = formatYMD(yesterday);
+            document.getElementById('endDate').value = formatYMD(now);
+            document.getElementById('minMag').value = "1";
+        }
+
+        function startLiveInterval() {
+            stopLiveInterval();
+            countdownSeconds = 60;
+            updateCountdownDisplay();
+            
+            countdownInterval = setInterval(() => {
+                countdownSeconds--;
+                if (countdownSeconds <= 0) {
+                    set24HourRange(); // Ensure exact 24h window
+                    fetchEarthquakeData(true);
+                    countdownSeconds = 60;
+                }
+                updateCountdownDisplay();
+            }, 1000);
+        }
+
+        function stopLiveInterval() {
+            if (countdownInterval) clearInterval(countdownInterval);
+            countdownInterval = null;
+            document.getElementById('liveCountdown').textContent = "";
+        }
+
+        function updateCountdownDisplay() {
+            if (isLiveMode) {
+                document.getElementById('liveCountdown').textContent = `Next update: ${countdownSeconds}s`;
+            }
+        }
+
+        function handleNearMe() {
+            const warningEl = document.getElementById('warning-banner');
+            warningEl.style.display = 'none';
+
+            if (!navigator.geolocation) {
+                warningEl.textContent = 'Geolocation is not supported by your browser.';
+                warningEl.style.display = 'block';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+
+                    if (!map) initMap();
+                    
+                    map.setView([lat, lon], 7);
+
+                    if (userMarker) {
+                        map.removeLayer(userMarker);
+                    }
+
+                    const icon = L.divIcon({
+                        className: 'user-marker',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    });
+
+                    userMarker = L.marker([lat, lon], { icon: icon }).addTo(map);
+                    userMarker.bindPopup("You are here");
+                },
+                (error) => {
+                    warningEl.textContent = 'Location access denied. You can manually navigate the map to your area.';
+                    warningEl.style.display = 'block';
+                }
+            );
+        }
+
+        // Initialize dates and then fetch the data
+        document.addEventListener('DOMContentLoaded', () => {
+            initDates();
+            
+            // Setup legend toggle
+            const legend = document.getElementById('mapLegend');
+            const toggle = document.getElementById('legendToggle');
+            const arrow = document.getElementById('legendArrow');
+            
+            if (window.innerWidth < 768) {
+                legend.classList.add('collapsed');
+                arrow.textContent = '▲';
+            }
+            
+            toggle.addEventListener('click', () => {
+                legend.classList.toggle('collapsed');
+                arrow.textContent = legend.classList.contains('collapsed') ? '▲' : '▼';
+            });
+
+            // Attempt Geolocation first load silently
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        if (!map) initMap();
+                        map.setView([lat, lon], 7);
+                        
+                        const icon = L.divIcon({ className: 'user-marker', iconSize: [20,20], iconAnchor: [10,10] });
+                        userMarker = L.marker([lat, lon], { icon: icon }).addTo(map);
+                        userMarker.bindPopup("You are here");
+
+                        toggleLiveMode(); // Replaces manual fetchEarthquakeData() with live mode stream
+                    },
+                    (error) => {
+                        fetchEarthquakeData(); // Silently fallback to Turkey defaults
+                    },
+                    { timeout: 3000 }
+                );
+            } else {
+                fetchEarthquakeData();
+            }
+        });
+    </script>
+</body>
+</html>
