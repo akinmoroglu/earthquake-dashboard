@@ -33,7 +33,7 @@ This project is built powerfully using minimal dependencies and no heavy build t
 
 Simply open the `index.html` file in any modern web browser or use a local dev server like `npx serve`. No build process is required!
 
-> **Live Demo:** [Placeholder URL for Vercel / GitHub Pages]
+> **Live Demo:** [https://earthquake-dashboard-blush.vercel.app](https://earthquake-dashboard-blush.vercel.app)
 
 ## Data Source
 
